@@ -1,0 +1,31 @@
+# ---- editor / OS ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# ---- apps/server (Laravel) ----
+apps/server/vendor/
+apps/server/node_modules/
+apps/server/.env
+apps/server/.env.backup
+apps/server/.phpunit.result.cache
+apps/server/storage/*.key
+apps/server/storage/app/private/
+apps/server/storage/framework/cache/data/
+apps/server/storage/framework/sessions/
+apps/server/storage/framework/testing/
+apps/server/storage/framework/views/
+apps/server/storage/logs/
+apps/server/bootstrap/cache/*.php
+apps/server/public/build/
+apps/server/public/hot
+apps/server/public/storage
+apps/server/database/*.sqlite
+apps/server/database/*.sqlite-journal
+
+# ---- apps/capture (Bun) ----
+apps/capture/node_modules/
+apps/capture/dist/
+apps/capture/.env
+apps/capture/bun.lockb
