@@ -2,6 +2,10 @@
 
 namespace App\Providers\Filament;
 
+use App\Models\SocialiteUser;
+use App\Models\User;
+use DutchCodingCompany\FilamentSocialite\FilamentSocialitePlugin;
+use DutchCodingCompany\FilamentSocialite\Provider;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -29,6 +33,22 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->brandName('Tricorder')
             ->login()
+            ->plugin(
+                FilamentSocialitePlugin::make()
+                    ->providers([
+                        Provider::make('google')
+                            ->label('Google')
+                            ->icon('heroicon-o-globe-alt')
+                            ->color(Color::hex('#4285F4'))
+                            ->outlined(false)
+                            ->stateless(false),
+                    ])
+                    ->slug('admin')
+                    ->registration(true)
+                    ->domainAllowList([])
+                    ->userModelClass(User::class)
+                    ->socialiteUserModelClass(SocialiteUser::class)
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
