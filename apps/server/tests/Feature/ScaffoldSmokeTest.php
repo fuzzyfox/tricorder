@@ -16,3 +16,7 @@ it('runs every migration cleanly', function () {
 
     expect($migrations)->not->toBeEmpty();
 });
+
+it('serves the filament login page', function () {
+    expect($this->get('/admin/login')->status())->toBeLessThan(500);
+});
