@@ -1,8 +1,9 @@
 # ADR 0002 — Auth: Sanctum PATs for CLI, Socialite (Google) for humans
 
-- **Status:** Accepted
+- **Status:** Accepted (amended 2026-04-24)
 - **Date:** 2026-04-19
 - **Supersedes:** —
+- **Amended by:** [PRD 0002 — Filament Socialite Google login](../prd/0002-filament-socialite-google-login.md) (see Amendments below)
 
 ## Context
 
@@ -19,7 +20,7 @@ We considered **Laravel Passport** for the CLI case. Passport gives us standard 
 
 ## Decision
 
-- **Human auth:** Laravel Socialite with Google. No local password auth. A user is created on first Google login; matching is by verified email.
+- **Human auth:** Laravel Socialite with Google as the primary login method. Filament's native password form is retained as a **break-glass admin path** — see Amendments below. A user is created on first Google login (gated by an email-domain allowlist per PRD 0002); matching is by verified email.
 - **Machine auth:** Laravel Sanctum personal access tokens.
 - **CLI login flow:** custom browser-redirect flow that mints a Sanctum PAT.
 
@@ -72,6 +73,23 @@ We considered **Laravel Passport** for the CLI case. Passport gives us standard 
 - Phase 1: add `CliLoginController@show` and `@approve`; add a consent Blade view.
 - Phase 1: Filament Resource for `PersonalAccessToken` so users/admins can revoke.
 - Phase 2: capture CLI implements the client side of the flow.
+
+## Amendments
+
+### 2026-04-24 — Retain Filament password form as break-glass (PRD 0002)
+
+The original Decision section read "No local password auth." [PRD 0002](../prd/0002-filament-socialite-google-login.md) softens that clause: Filament's native `->login()` form stays mounted on the admin panel as a **break-glass path** for admins minted via `tricorder:make-admin --with-password`, so that an operator whose Google OAuth client is misconfigured at 02:00 on a Saturday is not locked out of their own Server.
+
+Concretely:
+
+- Google remains the primary, advertised login method. The Google button sits above the email/password form on the panel login page.
+- Day-to-day admins are minted passwordless (`tricorder:make-admin {email}`, no flag) and have `users.password = null`. They cannot use the password form even if they try — there is no password to match against.
+- Break-glass admins are explicitly opt-in via `tricorder:make-admin {email} --with-password`. The plaintext password is printed once to stdout and never surfaced again.
+- The `users.password` column is made nullable to make the passwordless default representable in the schema.
+
+Rationale: enforcing "Google or nothing" is correct for normal operation, but it gives a self-hosted operator no recovery path when their own OAuth credentials break. Keeping the form as a deliberately-obscured fallback is cheaper than building a dedicated recovery flow and matches how operators of similar self-hosted tools behave in practice.
+
+This amendment does not affect the CLI auth flow (Sanctum PATs minted after a Google login) — that remains as originally decided.
 
 ## Related
 
