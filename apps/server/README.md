@@ -24,11 +24,18 @@ cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
 php artisan migrate
+php artisan tricorder:make-admin you@example.com
 php artisan serve
 ```
 
-Then visit [`http://127.0.0.1:8000/up`](http://127.0.0.1:8000/up) — Laravel's
-built-in health endpoint should return `200`.
+`tricorder:make-admin` upserts a Filament-panel user for the given email and
+prints a one-time password to stdout — copy it, then log in at
+[`http://127.0.0.1:8000/admin`](http://127.0.0.1:8000/admin). The command is
+idempotent: re-running it for the same email rotates the password without
+duplicating the user row.
+
+Visit [`http://127.0.0.1:8000/up`](http://127.0.0.1:8000/up) to hit Laravel's
+built-in health endpoint — it should return `200`.
 
 ## Test
 
