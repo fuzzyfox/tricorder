@@ -21,7 +21,9 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Str;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Laravel\Socialite\Contracts\User as SocialiteUserContract;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -44,8 +46,42 @@ class AdminPanelProvider extends PanelProvider
                             ->stateless(false),
                     ])
                     ->slug('admin')
-                    ->registration(true)
-                    ->domainAllowList([])
+                    // Empty allowlist ⇒ no auto-registration of new Google sign-ins
+                    // (closed default). Existing users matched by email still log
+                    // in regardless. The plugin captures `domainAllowList` at panel
+                    // boot, so we override `authorizeUserUsing` to read the list
+                    // live from config on every callback (keeps the value
+                    // overridable per-request, e.g. in tests via `Config::set`).
+                    ->registration(function (string $provider, SocialiteUserContract $oauthUser, ?\Illuminate\Contracts\Auth\Authenticatable $user): bool {
+                        if ($user !== null) {
+                            return true;
+                        }
+
+                        return count(config('services.filament_socialite.domain_allowlist', [])) > 0;
+                    })
+                    ->authorizeUserUsing(function (FilamentSocialitePlugin $plugin, SocialiteUserContract $oauthUser): bool {
+                        $domains = config('services.filament_socialite.domain_allowlist', []);
+
+                        // Empty allowlist: defer the gate to the registration
+                        // callback (closed-by-default for new emails; existing
+                        // users matched by email still get through).
+                        if (count($domains) < 1) {
+                            return true;
+                        }
+
+                        $email = $oauthUser->getEmail();
+
+                        if ($email === null) {
+                            return false;
+                        }
+
+                        return in_array(
+                            Str::of($email)->afterLast('@')->lower()->__toString(),
+                            $domains,
+                            true,
+                        );
+                    })
+                    ->domainAllowList(config('services.filament_socialite.domain_allowlist', []))
                     ->userModelClass(User::class)
                     ->socialiteUserModelClass(SocialiteUser::class)
             )

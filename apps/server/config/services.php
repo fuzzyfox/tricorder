@@ -41,4 +41,14 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'filament_socialite' => [
+        // Email-domain allowlist that gates auto-registration of new Google sign-ins.
+        // Empty list ⇒ no auto-registration (closed default — only pre-existing
+        // users can log in). Comma-separated env var, e.g. "example.com,acme.io".
+        'domain_allowlist' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('FILAMENT_SOCIALITE_DOMAIN_ALLOWLIST', '')),
+        ))),
+    ],
+
 ];

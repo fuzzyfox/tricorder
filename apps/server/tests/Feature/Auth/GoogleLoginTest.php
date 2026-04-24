@@ -4,6 +4,7 @@ use App\Models\SocialiteUser;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteOauthUser;
 
@@ -93,4 +94,74 @@ it('re uses the socialite user row on subsequent logins', function () {
         ->where('provider_id', 'google-alice-id')
         ->count()
     )->toBe(1);
+});
+
+it('auto registers a user when email domain is on the allowlist', function () {
+    Config::set('services.filament_socialite.domain_allowlist', ['example.com']);
+
+    $oauthUser = fakeOauthUser('google-bob-id', 'bob@example.com', 'Bob');
+
+    $driver = Mockery::mock();
+    $driver->shouldReceive('user')->andReturn($oauthUser);
+    Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+    expect(User::where('email', 'bob@example.com')->exists())->toBeFalse();
+
+    $response = $this->get('/admin/oauth/callback/google');
+
+    expect(Auth::check())->toBeTrue();
+    expect(Auth::user()->email)->toBe('bob@example.com');
+
+    $response->assertRedirect();
+    expect($response->headers->get('Location'))->toContain('/admin');
+
+    $bob = User::where('email', 'bob@example.com')->first();
+    expect($bob)->not->toBeNull();
+
+    expect(SocialiteUser::query()
+        ->where('provider', 'google')
+        ->where('provider_id', 'google-bob-id')
+        ->where('user_id', $bob->id)
+        ->count()
+    )->toBe(1);
+});
+
+it('blocks login when email domain is not on the allowlist', function () {
+    Config::set('services.filament_socialite.domain_allowlist', ['example.com']);
+
+    $oauthUser = fakeOauthUser('google-mallory-id', 'mallory@evil.com', 'Mallory');
+
+    $driver = Mockery::mock();
+    $driver->shouldReceive('user')->andReturn($oauthUser);
+    Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+    $response = $this->get('/admin/oauth/callback/google');
+
+    expect(Auth::check())->toBeFalse();
+    expect(User::where('email', 'mallory@evil.com')->exists())->toBeFalse();
+    expect(SocialiteUser::query()->where('provider_id', 'google-mallory-id')->count())->toBe(0);
+
+    $response->assertStatus(302);
+    $response->assertRedirect('/admin/login');
+    $response->assertSessionHas('filament-socialite-login-error');
+});
+
+it('blocks auto registration when allowlist is empty', function () {
+    Config::set('services.filament_socialite.domain_allowlist', []);
+
+    $oauthUser = fakeOauthUser('google-stranger-id', 'stranger@somewhere.test', 'Stranger');
+
+    $driver = Mockery::mock();
+    $driver->shouldReceive('user')->andReturn($oauthUser);
+    Socialite::shouldReceive('driver')->with('google')->andReturn($driver);
+
+    $response = $this->get('/admin/oauth/callback/google');
+
+    expect(Auth::check())->toBeFalse();
+    expect(User::where('email', 'stranger@somewhere.test')->exists())->toBeFalse();
+    expect(SocialiteUser::query()->where('provider_id', 'google-stranger-id')->count())->toBe(0);
+
+    $response->assertStatus(302);
+    $response->assertRedirect('/admin/login');
+    $response->assertSessionHas('filament-socialite-login-error');
 });
